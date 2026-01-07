@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Resolving…</title>
+  <style>body{margin:0;font-family:system-ui;background:#0b0d12;color:#e9ecf1;display:flex;align-items:center;justify-content:center;height:100vh}.card{padding:16px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);max-width:720px}</style>
+</head>
+<body>
+  <div class="card">
+    <div id="msg">Resolving link…</div>
+  </div>
+  <script>
+    // Set collector URL if you want hub logging
+    window.ADMENSION_COLLECTOR_URL = window.ADMENSION_COLLECTOR_URL || '';
+  </script>
+  <script>
+  (async function(){
+    const path = location.pathname.split('/');
+    const code = (path[path.length-1]||'').toUpperCase();
+    const collector = window.ADMENSION_COLLECTOR_URL;
+    try{
+      const u = new URL(collector);
+      u.searchParams.set('code', code);
+      const res = await fetch(u.toString());
+      const json = await res.json();
+      if(json && json.ok){
+        const target = json.url || '';
+        const msg = json.msg || '';
+        const dest = new URL('/ADMENSION/', location.origin);
+        dest.searchParams.set('adm', code);
+        dest.searchParams.set('s','1');
+        dest.searchParams.set('seed', String(Date.now()));
+        if(target) dest.searchParams.set('target', target);
+        if(msg) dest.searchParams.set('msg', msg);
+        // optional hub log
+        if(window.ADMENSION_COLLECTOR_URL){ try{ await fetch(window.ADMENSION_COLLECTOR_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:Date.now(),type:'resolve_redirect',payload:{code,target}})});}catch(e){} }
+        location.replace(dest.toString());
+        return;
+      }
+      document.getElementById('msg').textContent = 'Link not found or deleted.';
+    }catch(e){
+      document.getElementById('msg').textContent = 'Resolution error.';
+    }
+  })();
+  </script>
+</body>
+</html>
