@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>GareBear Hub • VALLIS + ADMENSION</title>
+  <meta name="description" content="Traffic hub and router for VALLIS ecosystem and ADMENSION."/>
+  <style>
+    body{margin:0;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;background:#0b0d12;color:#e9ecf1}
+    .wrap{max-width:980px;margin:34px auto;padding:0 14px}
+    .card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px;margin-top:12px}
+    h1{margin:0 0 8px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media (max-width:800px){.grid{grid-template-columns:1fr}}
+    a.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);text-decoration:none;color:#e9ecf1}
+    a.btn:hover{background:rgba(255,255,255,.06)}
+    .mini{opacity:.8}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.12);margin-right:6px;margin-top:6px;font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>GareBear Hub</h1>
+      <div class="mini">Traffic router • attribution • UTM capture • VALLIS/ADMENSION entry</div>
+      <div id="status" class="mini mono" style="margin-top:6px"></div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>ADMENSION</h3>
+        <p class="mini">Ad monetization platform with anti‑abuse and monthly pool payouts.</p>
+        <a class="btn" id="goAdm" href="/ADMENSION/">Open /ADMENSION</a>
+      </div>
+      <div class="card">
+        <h3>VALLIS Docs</h3>
+        <p class="mini">Platform docs hub (games, treasury, receipts). Local path subject to change.</p>
+        <a class="btn" id="goVallis" href="/VALLIS/">Open /VALLIS</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Debug (captured)</h3>
+      <pre id="dbg" class="mono" style="white-space:pre-wrap"></pre>
+    </div>
+  </div>
+
+  <script>
+    // Optional: paste your collector URL here for the hub too
+    window.ADMENSION_COLLECTOR_URL = window.ADMENSION_COLLECTOR_URL || '';
+  </script>
+  <script>
+  (function(){
+    const u = new URL(location.href);
+    const p = u.searchParams;
+
+    // Capture referral/UTM/adm link
+    const ref = document.referrer || '';
+    const utm = {
+      utm_source: p.get('utm_source')||'',
+      utm_medium: p.get('utm_medium')||'',
+      utm_campaign: p.get('utm_campaign')||'',
+      utm_content: p.get('utm_content')||'',
+      utm_term: p.get('utm_term')||'',
+      adm: (p.get('adm')||'').toUpperCase()
+    };
+
+    // Basic SID (stable per browser)
+    function cid(){const a=new Uint8Array(16);crypto.getRandomValues(a);return Array.from(a).map(x=>x.toString(16).padStart(2,'0')).join('')}
+    const SK='hub.sid';
+    let sid = localStorage.getItem(SK) || cid(); localStorage.setItem(SK, sid);
+
+    // Decide system
+    // If explicit ?to=admension|vallis, honor it; else route based on path hints or default to ADMENSION
+    const to = (p.get('to')||'').toLowerCase();
+    let target = '/ADMENSION/';
+    if(to==='vallis') target = '/VALLIS/';
+    if(location.pathname.toLowerCase().includes('/vallis')) target = '/VALLIS/';
+
+    // Persist params when redirecting
+    function makeUrl(base){
+      const b = new URL(base, location.origin);
+      for(const [k,v] of Object.entries(utm)){
+        if(v) b.searchParams.set(k, v);
+      }
+      // forward a seed and step for ADMENSION if present
+      if(p.get('s')) b.searchParams.set('s', p.get('s'));
+      if(p.get('seed')) b.searchParams.set('seed', p.get('seed'));
+      return b.toString();
+    }
+
+    const dbg = { sid, ref, utm, target };
+    document.getElementById('dbg').textContent = JSON.stringify(dbg,null,2);
+    document.getElementById('status').textContent = 'Ready — capturing and routing';
+
+    // Send hub event if collector configured
+    (async function(){
+      const url = window.ADMENSION_COLLECTOR_URL;
+      if(!url) return;
+      try{ await fetch(url, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:Date.now(),type:'hub_hit',payload:{sid_hash:sid.slice(0,8),ref,utm,target}})}); }catch(e){}
+    })();
+
+    // Auto-redirect if `auto=1` or if this came from an external referrer
+    const auto = p.get('auto')==='1' || (ref && !ref.includes(location.host));
+    if(auto){
+      const dest = makeUrl(target);
+      // log redirect
+      (async function(){ const url = window.ADMENSION_COLLECTOR_URL; if(url){ try{ await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({t:Date.now(),type:'hub_redirect',payload:{sid_hash:sid.slice(0,8),dest}})});}catch(e){} } })();
+      location.replace(dest);
+    }
+
+    // Wire buttons
+    document.getElementById('goAdm').onclick = (e)=>{ e.preventDefault(); location.href = makeUrl('/ADMENSION/'); };
+    document.getElementById('goVallis').onclick = (e)=>{ e.preventDefault(); location.href = makeUrl('/VALLIS/'); };
+  })();
+  </script>
+</body>
+</html>
